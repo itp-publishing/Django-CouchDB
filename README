@@ -29,6 +29,7 @@ Then after creating your blog_article database and other databases, you should b
 Clone these classes and throw them in an app in your Django App, Example MyCouchApp
 
 from MyCouchApp.query import CouchQuery
+PS: query.py assume the MyCouchApp is itpcouch, so you got to change the first line in query.py to whatever name you choose.
 
 #connect to article database
 dbq = CouchQuery("blog" , "article" )
