@@ -1,0 +1,88 @@
+
+This provides a few useful classes to deal with CouchDB and Couch-Lucene from Django.
+
+The idea is simple, to create a blog site you create a database for articles, another for comemnts and one for media. Then create a database called site_settings
+site_settings will be the map between your different sites and their collection of databases.
+
+A document in site_settings should look like this ( This is for the blog ):
+{
+   "_id": "xxxxxxxxxxxxx",
+   "_rev": "xx-xxxxxxxxxxxxxxx",
+   "domain": "www.mydomain.com",
+   "site" : "blog",
+   "db_article": "blog_article",
+   "db_media": "blog_media",
+   "db_comment": "blog_comment"
+}
+
+You could also possible add any sort of configurations you wish to add to this blog database, e.g.:
+{
+   "language": "ar",
+   "email": "dude@mydomain.com"
+}
+
+It's obviously possible to store comments, articles and media in the same database and recognize them by one field but we don't think this is an ideal approach for all different types especially when it comes to huge amount of data and searching the database becomes a nightmare. However you still need to consider that your views should still bring the right data and diving into multiple databases means possibly more views to write. 
+
+
+Then after creating your blog_article database and other databases, you should be able to start communicating with these databases from your Django app through these classes by:
+
+Clone these classes and throw them in an app in your Django App, Example MyCouchApp
+
+from MyCouchApp.query import CouchQuery
+
+#connect to article database
+dbq = CouchQuery("blog" , "article" )
+
+#this will return just what the HTTP results return..  JSON
+doc = dbq.filter( section="my-doc-sect" )
+view_results = dbq.view("sectionlistings/in-videos", {'descending' : 'true','limit' : 10})
+
+#how about doing just like in Django objects.filter( __id___in=[1,2,3] ).exclude( sect=2 ).order_by("-id")
+#to do chained queries you need to acitve the lazy property
+
+#on initilization:
+dbq = CouchQuery("dbname" , "article", True ) #note the True at the end
+#then 
+dbq.filter(__id___in=[1,2,3], views__gte=13 ).exclude( sect=2, views__gte=30 ).order_by("id").descending(True).limit(5).skip(10).fire()
+
+#Fire is where you say, I'm done go fetch it !
+
+#before firing you can even write an extra javascript
+dbq.extras( "my javascript intercepting query goes here" )
+
+#or define what should the query return by default it is emit( d._id, d )
+dbq.return_k = "d.title"
+dbq.return_v = "null"
+
+#you could also say:
+dbq.all() 
+
+dbq.get( _id=2 ) #this doesn't return a list, instead it returns an object.
+
+
+dbq.change_db("comment")
+dbq.delete( _id=4, rev=xx )
+
+
+##########################
+
+To reach configuration DB (site_settings) , you've got in the handler.py  the class ConfigDB
+
+The class ITP_CouchDB, is a lower interface where you can query, search, add, update, delete, create_view, etc. with simple Javascript sometimes.
+
+For view and Query there are functional interfaces that accept dictionaries as arguments, in case you needed to write a query from javascript or from a couch document itself!
+
+#######################
+
+TODO:
+
+- Add __contains functionality
+ 
+
+
+
+
+
+
+
+

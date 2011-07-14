@@ -1,0 +1,144 @@
+# -*- coding: utf-8 -
+
+#  ITP - abar - lucene installation notes. Wiki formatted
+#
+#
+#  Author: Martin Alcala Rubi - Tryolabs
+#  e-mail: martin@tryolabs.com
+#                                   Feb 2011
+#
+
+{{toc}}
+
+h2. Lucene benefits:
+
+* ranked searching
+* powerful wuery types: phrase queries, wildcard queries, proximity queries, range queries, etc
+* fielded searching
+* boolean operators
+* sorting by any field
+* allows simultaneous update and searching
+
+h2. Notes
+
+Search interface via @http_db_handlers@, usually @_fti@
+
+Indexer via CouchDB update notification
+
+h2. Install
+
+Followed instructions from [[http://wiki.fluidproject.org/display/fluid/Setting+Up+CouchDB+and+Lucene]]
+
+Install maven2
+
+<pre>
+sudo apt-get install git-core maven2
+</pre>
+
+Download the source:
+
+<pre>
+git clone git://github.com/rnewson/couchdb-lucene.git
+</pre>
+
+Build everything:
+
+<pre>
+cd couchdb-lucene
+mvn
+</pre>
+
+Copy the assembled jar file into a proper directory, and give appropiate permissions:
+
+<pre>
+mkdir /var/lib/couchdb/1.0.1/lucene/
+cp couchdb-lucene-0.7-SNAPSHOT-dist.zip /var/lib/couchdb/1.0.1/lucene/
+cd /var/lib/couchdb/1.0.1/lucene/
+unzip couchdb-lucene-0.7-SNAPSHOT-dist.zip
+cd ..
+chown -R couchdb lucene/
+</pre>
+
+h2. Setting up the integration CouchDB-Lucene
+
+Configure the proper options in @/etc/couchdb/local.ini@ file. Add the following parameters at the end of the file:
+
+<pre>
+[couchdb]
+os_process_timeout=60000 ; increase the timeout from 5 seconds.
+
+[external]
+fti=/usr/bin/python /var/lib/couchdb/1.0.1/lucene/couchdb-lucene-0.7-SNAPSHOT/tools/couchdb-external-hook.py
+
+[httpd_db_handlers]
+_fti = {couch_httpd_external, handle_external_req, <<"fti">>}
+</pre>
+
+Install the init file to start under services:
+
+<pre>
+cd /var/lib/couchdb/1.0.1/lucene/couchdb-lucene-0.7-SNAPSHOT/tools/etc/init.d/couchdb-lucene
+cp couchdb-lucene /etc/init.d/
+</pre>
+
+Edit the @couchdb-lucene@ file and set the correct location of the run script
+<pre>
+DAEMON=/usr/local/couchdb-lucene-0.5.5/bin/run
+</pre>
+
+Now you can start the service using the usual @service@ syntax:
+<pre>
+service couchdb-lucene start
+</pre>
+
+Restart the couchdb service to apply configuration changes
+<pre>
+service couchdb restart
+</pre>
+
+h2. Firing-up
+
+Used this design document in @martintest2@ DB, it has a 'title' attribute where I will search:
+<pre>
+{
+   "_id": "_design/foo",
+   "_rev": "1-166900c56b2e87d91bb48dcf890c84ed",
+   "fulltext": {
+       "by_title": {
+           "index": "function(doc) { var ret=new Document(); ret.add(doc.title); return ret }"
+       }
+   }
+}
+</pre>
+
+
+Tryed this command for a @martintest2@ DB..
+
+<pre>
+# curl -X GET http://localhost:5984/martintest2/_fti/_design/foo/by_title?q=hello
+{"limit":25,"etag":"1ffee9136a5b","fetch_duration":0,"q":"default:hello","search_duration":0,"total_rows":1,"skip":0,"rows":[{"id":"1679b0952323a672a5a84d76dc002077","score":0.8784157037734985}]}
+</pre>
+
+corresponding to this 'register':
+<pre>
+{
+   "_id": "1679b0952323a672a5a84d76dc002077",
+   "_rev": "1-97dd85b06c25328a300f3f4041def370",
+   "title": "Hello World",
+   "body": "Well hello and welcome to my new blog...",
+   "date": "2009/01/15 15:52:20"
+}
+</pre>
+
+Making a fuzzy query: use the @~@ parameter
+<pre>
+curl -X GET http://localhost:5984/martintest2/_fti/_design/foo/by_title?q=hell~
+{"limit":25,"etag":"1ffee9136a5b","fetch_duration":0,"q":"default:hell~0.5","search_duration":0,"total_rows":1,"skip":0,"rows":[{"id":"1679b0952323a672a5a84d76dc002077","score":0.8784157037734985}]}draix@Tryo-One:/var/lib$
+</pre>
+
+To view the full parameter set of the query languague, visit @http://lucene.apache.org/java/2_4_0/queryparsersyntax.html#Fuzzy Searches@
+
+
+
+
+
